@@ -6,7 +6,7 @@ class IMU : public BNO080 {
     void print();
     void get_data();
     double **reciev_data();
-    void begin_loop(uint8_t deviceAddress, TwoWire &wirePort = I2CIMUs, uint8_t intPin = 255);
+    void begin_loop(uint8_t deviceAddress, TwoWire * wirePort = &Wire, uint8_t intPin = 255);
 
 };
 
@@ -19,8 +19,8 @@ void IMU::print() {
   //Serial.print("\n");
 }
 
-void IMU::begin_loop(uint8_t deviceAddress, TwoWire &wirePort, uint8_t intPin) {
-  while (begin(deviceAddress, I2CIMUs) == false) {
+void IMU::begin_loop(uint8_t deviceAddress, TwoWire * wirePort, uint8_t intPin) {
+  while (begin(deviceAddress, (*wirePort)) == false) {
     Serial.printf("\nIMU %d no detectada", deviceAddress);
     delay(10);
   }
