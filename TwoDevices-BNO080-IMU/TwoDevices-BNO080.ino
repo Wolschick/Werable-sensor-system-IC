@@ -65,6 +65,8 @@ void loop() {
   return;
 }
 
+// mod jonathan
+
 double * calc_angle(double *p, double *q) {
   Cw = ((q[3] * p[3]) + (q[0] * p[0]) + (q[1] * p[1]) + (q[2] * p[2])); //parte real quaternion
   //if (Cw < 0 ) Cw = Cw * (-1);
