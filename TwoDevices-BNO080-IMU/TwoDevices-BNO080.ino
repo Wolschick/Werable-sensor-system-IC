@@ -33,8 +33,8 @@ void setup() {
   I2CIMUs.setClock(400000);
   
   //define endereco das IMUs
-  IMUs[0].begin_loop(0x4B, I2CIMUs);
-  IMUs[1].begin_loop(0x4A, I2CIMUs);
+  IMUs[0].begin_loop(0x4B, &I2CIMUs);
+  IMUs[1].begin_loop(0x4A, &I2CIMUs);
 
   //calculo de tempo de execucao
   _t[0] = micros();
@@ -64,8 +64,6 @@ void loop() {
   }
   return;
 }
-
-// mod jonathan
 
 double * calc_angle(double *p, double *q) {
   Cw = ((q[3] * p[3]) + (q[0] * p[0]) + (q[1] * p[1]) + (q[2] * p[2])); //parte real quaternion
