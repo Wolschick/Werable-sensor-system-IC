@@ -81,7 +81,7 @@ double * calc_angle(double *p, double *q) {
   //euler angles
   static double euler_angles[3];
   euler_angles[0] = atan2(2 * (Cw * Cxyz[0] + Cxyz[1] * Cxyz[2]), 1 - (2 * ((Cxyz[0] * Cxyz[0]) + (Cxyz[1] * Cxyz[1])))); //theta
-  euler_angles[1] = asin(2 * ((Cw * Cxyz[1]) - (Cxyz[2] * Cxyz[1]))); //phi
+  euler_angles[1] = asin(2 * ((Cw * Cxyz[1]) - (Cxyz[2] * Cxyz[0]))); //phi
   euler_angles[2] = atan2(2 * (Cw * Cxyz[2] + Cxyz[0] * Cxyz[1]), 1 - (2 * ((Cxyz[1] * Cxyz[1]) + (Cxyz[2] * Cxyz[2])))); //psi
   
   return euler_angles;
