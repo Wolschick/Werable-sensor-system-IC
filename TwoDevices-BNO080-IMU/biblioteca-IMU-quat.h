@@ -25,6 +25,7 @@ void IMU::begin_loop(uint8_t deviceAddress, TwoWire * wirePort, uint8_t intPin) 
     delay(10);
   }
 
+  //calibrateAll(); //calibra a IMU
   enableRotationVector(ms_send);    //We must enable the accel in order to get MEMS readings even if we don't read the reports.
 
   if (intPin != 255) {
