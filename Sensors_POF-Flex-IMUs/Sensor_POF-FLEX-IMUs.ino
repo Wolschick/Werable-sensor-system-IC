@@ -7,6 +7,7 @@
 #include <WiFi.h>
 //#include <BasicLinearAlgebra.h>
 
+#define PRINT false
 //IMUs****************************
 
 #define sizedata 4
@@ -212,7 +213,7 @@ void loop() {
     fail_data1 ++;
   }
 
-  //verifica funcionamento Flex sensor 1
+  //verifica funcionamento Flex sensor 2
   if (myFlexSensor2.available() == true) {
     Flex2_X = (myFlexSensor2.getX());// - offset_values[2]);
     Flex2_Y = (myFlexSensor2.getY());// - offset_values[3]);
@@ -238,42 +239,44 @@ void loop() {
     _t[1] += ms_send * 1000;
 
     //ofset_values = Flex1_X; Flex1_Y; Flex2_X; Flex2_Y; POF_value01; POF_value02; euler_angles_degree[0]; euler_angles_degree[1]; euler_angles_degree[2];
-    Serial.print((euler_angles_degree[0]) - (offset_values[6]) );
-    Serial.print('\t');
-    Serial.print((euler_angles_degree[1]) - (offset_values[7]));
-    Serial.print('\t');
-    Serial.print((euler_angles_degree[2]) - (offset_values[8]));
-    Serial.print('\t');
-    Serial.print(Flex1_X - offset_values[0]);
-    Serial.print('\t');
-    Serial.print(Flex1_Y - offset_values[1]);
-    Serial.print('\t');
-    Serial.print(Flex2_X - offset_values[2]);
-    Serial.print('\t');
-    Serial.print(Flex2_Y - offset_values[3]);
-    Serial.print('\t');
-    Serial.print(double(POF_value01) - offset_values[4]);
-    Serial.print('\t');
-    Serial.print(double(POF_value02) - offset_values[5]);
-    Serial.print('\n');
-    /*
+    if (PRINT == true) {
+      Serial.print((euler_angles_degree[0]) - (offset_values[6]) );
+      Serial.print('\t');
+      Serial.print((euler_angles_degree[1]) - (offset_values[7]));
+      Serial.print('\t');
+      Serial.print((euler_angles_degree[2]) - (offset_values[8]));
+      Serial.print('\t');
+      Serial.print(Flex1_X - offset_values[0]);
+      Serial.print('\t');
+      Serial.print(Flex1_Y - offset_values[1]);
+      Serial.print('\t');
+      Serial.print(Flex2_X - offset_values[2]);
+      Serial.print('\t');
+      Serial.print(Flex2_Y - offset_values[3]);
+      Serial.print('\t');
+      Serial.print(double(POF_value01) - offset_values[4]);
+      Serial.print('\t');
+      Serial.print(double(POF_value02) - offset_values[5]);
+      Serial.print('\n');
+    }
+    
 
       for (int i = 0; i < 9; i++ ) {
       Serial.print(offset_values[i]);
       Serial.print("\t");
       }
-      Serial.print("\n");*/
+      Serial.print("\n");
 
     //envia os dados via ESPNOW
-    myData.NOW_S1_Xflex = Flex1_X;
-    myData.NOW_S1_Yflex = Flex1_Y;
-    myData.NOW_S1_POF = POF_value01;
-    myData.NOW_S2_Xflex = Flex2_X;
-    myData.NOW_S2_Yflex = Flex2_Y;
-    myData.NOW_S2_POF = POF_value02;
-    myData.NOW_IMU_Tetha = euler_angles_degree[0];
-    myData.NOW_IMU_Phi = euler_angles_degree[1];
-    myData.NOW_IMU_Psi = euler_angles_degree[2];
+    myData.NOW_S1_Xflex = (Flex1_X - offset_values[0])*(-1); //perna esquerda
+    myData.NOW_S1_Yflex = Flex1_Y - offset_values[1]; //perna esquerda
+    myData.NOW_S1_POF = POF_value01 - offset_values[4]; //perna esquerda
+    myData.NOW_S2_Xflex = Flex2_X - offset_values[2]; //perna direita
+    myData.NOW_S2_Yflex = Flex2_Y - offset_values[3]; //perna direita
+    myData.NOW_S2_POF = POF_value02 - offset_values[5]; //perna direita
+    myData.NOW_IMU_Tetha = euler_angles_degree[0] - offset_values[6]; 
+    myData.NOW_IMU_Phi = euler_angles_degree[1] - offset_values[7];
+    myData.NOW_IMU_Psi = euler_angles_degree[2] - offset_values[8];
 
     esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
@@ -314,11 +317,11 @@ double * offset_func(float Flex1_X, float Flex1_Y, float POF_value01, float Flex
 
   static double Average[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 , 0.0, 0.0};
 
-  if (offset_cont <=10) return Average;
+  if (offset_cont <= 10) return Average;
 
   Serial.print("Calculando o Offset...");
 
-  
+
 
   Average[0] += double(Flex1_X);
   Average[1] += double(Flex1_Y);
