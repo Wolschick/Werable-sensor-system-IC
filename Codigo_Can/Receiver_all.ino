@@ -12,16 +12,13 @@ uint8_t * pValues_11;
 float values_12[_N_SENSORS_MAX];
 uint8_t * pValues_12;
 
-float valSum11;
-float valSum12;
-
 long t1;
 long samples = 0;
 
 void setup() {
   pValues_11 = (uint8_t *) &values_11;
   pValues_12 = (uint8_t *) &values_12;
-  Serial.begin(115200);
+  Serial.begin(1E6);
   while (!Serial);
 
   Serial.println("CAN Receiver");
@@ -87,7 +84,6 @@ void loop() {
         Serial.print(values_12[ix]);
         Serial.print("\t");
       }
-      Serial.print("\n");
     }
   }
 }
