@@ -4,39 +4,9 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <BasicLinearAlgebra.h>
-#include <EloquentTinyML.h>
-#include <eloquent_tinyml/tensorflow.h>
 
 // ****** Configure filter ******
 using namespace BLA;
-
-//Filter variables
-float pof1_lpfilt;
-float pof1_ant = 0;
-float pof2_lpfilt;
-float pof2_ant = 0;
-
-float low_pass_param_1 = 0.0;
-float low_pass_param_2 = 1.0;
-
-float unit = 1.0;
-float Rval = 100.0;
-float Qval = 1.0;
-int ii = 0;
-
-BLA::Matrix<6, 6> Pk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6, 6> Pk_update = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6, 6> Pk_prev = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6> Xk_est = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6> Xk_update = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6> Xk_prev = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6, 6> Kk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6, 6> Rk = {Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval};
-BLA::Matrix<6, 6> Qk = {Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval};
-BLA::Matrix<6, 6> Pkup_Rk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6> SensorData = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6> KalmanFilterData = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-BLA::Matrix<6, 6> I6 = {unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit};
 
 //Create template to filter
 template <int dim, class ElemT>
@@ -77,6 +47,34 @@ float Flex2_Y_lpfilt;
 float Flex2_Y;
 float Flex2_Y_ant = 0;
 
+//Filter variables
+float pof1_lpfilt;
+float pof1_ant = 0;
+float pof2_lpfilt;
+float pof2_ant = 0;
+
+float low_pass_param_1 = 0.0;
+float low_pass_param_2 = 1.0;
+
+float unit = 1.0;
+float Rval = 100.0;
+float Qval = 1.0;
+int ii = 0;
+
+BLA::Matrix<6, 6> Pk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6, 6> Pk_update = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6, 6> Pk_prev = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6> Xk_est = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6> Xk_update = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6> Xk_prev = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6, 6> Kk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6, 6> Rk = {Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Rval};
+BLA::Matrix<6, 6> Qk = {Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Qval};
+BLA::Matrix<6, 6> Pkup_Rk = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6> SensorData = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6> KalmanFilterData = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+BLA::Matrix<6, 6> I6 = {unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, unit};
+
 float data[6];
 int fail_data2 = 0;
 int fail_data1 = 0;
@@ -85,6 +83,16 @@ int fail_data1 = 0;
 
 //Receiver address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+float valinit_Flex1X = 0;
+float valinit_Flex1Y = 0;
+float valinit_Flex2X = 0;
+float valinit_Flex2Y = 0;
+float valinit_POF1 = 0;
+float valinit_POF2 = 0;
+
+int cont_init = 0;
+int cont_mean = 0;
 
 ADS myFlexSensor1; //Create object of the ADS class
 ADS myFlexSensor2; //Create object of the ADS class
@@ -98,7 +106,7 @@ const byte POF_02 = 36;
 
 int countdownMS; //variable to count time
 
-//variables to recieve ESPNOW data
+//Variables to send with ESPNOW
 typedef struct struct_message {
   float NOW_S1_Xflex;
   float NOW_S1_Yflex;
@@ -159,6 +167,7 @@ void setup() {
     return;
   }
 
+  // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(OnDataSent);
 
@@ -235,28 +244,59 @@ void loop() {
 
   // ************
 
-  if (true) {
-    Serial.print(Xk_est(0));
-    Serial.print("\t");
-    Serial.print(Xk_est(1));
-    Serial.print("\t");
-    Serial.print(Xk_est(2));
-    Serial.print("\t");
-    Serial.print(Xk_est(3));
-    Serial.print("\t");
-    Serial.print(Xk_est(4));
-    Serial.print("\t");
-    Serial.print(Xk_est(5));
-    Serial.print("\t");
+  if (cont_init > 50 && cont_init < 100) {
+    valinit_Flex1X = valinit_Flex1X + Xk_est(0);
+    valinit_Flex1Y = valinit_Flex1Y + Xk_est(1);
+    valinit_POF1 = valinit_POF1 + Xk_est(2);
+    valinit_Flex2X = valinit_Flex2X + Xk_est(3);
+    valinit_Flex2Y = valinit_Flex2Y + Xk_est(4);
+    valinit_POF2 = valinit_POF2 + Xk_est(5);
+    cont_init++;
+  }
+  if (cont_init <= 50) cont_init++;
+  if (cont_init >= 100 && cont_mean == 0) {
+    valinit_Flex1X = valinit_Flex1X / 50;
+    valinit_Flex1Y = valinit_Flex1Y / 50;
+    valinit_Flex2X = valinit_Flex2X / 50;
+    valinit_Flex2Y = valinit_Flex2Y / 50;
+    valinit_POF1 = valinit_POF1 / 50;
+    valinit_POF2 = valinit_POF2 / 50;
+    cont_mean++;
   }
 
+
   // Send filtered data by ESPNOW
-  myData.NOW_S1_Xflex = Xk_est(0);
-  myData.NOW_S1_Yflex = Xk_est(1);
-  myData.NOW_S1_POF   = Xk_est(4);
-  myData.NOW_S2_Xflex = Xk_est(2);
-  myData.NOW_S2_Yflex = Xk_est(3);
-  myData.NOW_S2_POF   = Xk_est(5);
+  myData.NOW_S1_Xflex = (Xk_est(0) - (valinit_Flex1X));
+  myData.NOW_S1_Yflex = (Xk_est(1) - (valinit_Flex1Y));
+  myData.NOW_S1_POF   = (Xk_est(2) - (valinit_POF1));
+  myData.NOW_S2_Xflex = (Xk_est(3) - (valinit_Flex2X));
+  myData.NOW_S2_Yflex = (Xk_est(4) - (valinit_Flex2Y));
+  myData.NOW_S2_POF   = (Xk_est(5) - (valinit_POF2));
+
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+
+  if (result == ESP_OK) {
+    //Serial.println("Sent with success");
+  }
+  else {
+    //Serial.println("Error sending the data");
+  }
+
+  if (true) {
+    Serial.print(Xk_est(0) - (valinit_Flex1X));
+    Serial.print("\t");
+    Serial.print(Xk_est(1) - (valinit_Flex1Y));
+    Serial.print("\t");
+    Serial.print(Xk_est(2) - (valinit_POF1));
+    Serial.print("\t");
+    Serial.print(Xk_est(3) - (valinit_Flex2X));
+    Serial.print("\t");
+    Serial.print(Xk_est(4) - (valinit_Flex2Y));
+    Serial.print("\t");
+    Serial.print(Xk_est(5) - (valinit_POF2));
+    Serial.print("\t");
+  }
 
   Serial.print('\n');
 
