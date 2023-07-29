@@ -1,11 +1,15 @@
 #include <BasicLinearAlgebra.h>
 #include <ElementStorage.h>
+
 #include <esp_now.h>
 #include <WiFi.h>
 #include <math.h>
 
 const bool print_raw_data = false;
-const bool print_predict_data = true;
+const bool print_predict_data = false;
+const bool send_serial_data = true;
+
+float predicted_values[2];
 
 // ****** Configure NN ******
 #define N_INPUTS 3
@@ -85,11 +89,11 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
   input_left[0] = (2 * (myData.NOW_S1_Xflex - X_min_left[0]) / (X_max_left[0] - X_min_left[0])) - 1;
   input_left[1] = (2 * (-myData.NOW_S1_Yflex - X_min_left[1]) / (X_max_left[1] - X_min_left[1])) - 1;
-  input_left[2] = (2 * ((-myData.NOW_S1_POF/10) - X_min_left[2]) / (X_max_left[2] - X_min_left[2])) - 1;
+  input_left[2] = (2 * ((-myData.NOW_S1_POF / 10) - X_min_left[2]) / (X_max_left[2] - X_min_left[2])) - 1;
 
   input_right[0] = (2 * (-myData.NOW_S2_Xflex - X_min_right[0]) / (X_max_right[0] - X_min_right[0])) - 1;
   input_right[1] = (2 * (-myData.NOW_S2_Yflex - X_min_right[1]) / (X_max_right[1] - X_min_right[1])) - 1;
-  input_right[2] = (2 * ((-myData.NOW_S2_POF/10) - X_min_right[2]) / (X_max_right[2] - X_min_right[2])) - 1;
+  input_right[2] = (2 * ((-myData.NOW_S2_POF / 10) - X_min_right[2]) / (X_max_right[2] - X_min_right[2])) - 1;
 
   if (print_raw_data == true) {
     Serial.print(myData.NOW_S1_Xflex);
@@ -131,6 +135,14 @@ void setup()
     Serial.println("Error initializing ESP-NOW");
     return;
   }
+
+  predicted_values[2] = 0;
+  predicted_values[3] = 0;
+  predicted_values[4] = 0;
+  predicted_values[5] = 0;
+  predicted_values[6] = 0;
+  predicted_values[7] = 0;
+  predicted_values[8] = 0;
 }
 
 void loop()
@@ -150,6 +162,24 @@ void loop()
     Serial.print("predicted right value: ");
     Serial.print((180 * predicted_right) / 3.141592);
     Serial.print("\n");
+  }
+
+  predicted_values[0] = predicted_left;
+  predicted_values[1] = predicted_right;
+
+  if (send_serial_data == true) {
+    serialEvent();
+  }
+}
+
+void serialEvent() {
+  char cmd = Serial.read();
+  if (cmd == 'p') {
+    uint8_t * toSend1;
+    toSend1 = (uint8_t *) &predicted_values;
+    for (int i = 0; i < (9 * 4); i++) {
+      Serial.write(*(toSend1 + i));
+    }
   }
 }
 
