@@ -84,16 +84,6 @@ int fail_data1 = 0;
 //Receiver address
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-float valinit_Flex1X = 0;
-float valinit_Flex1Y = 0;
-float valinit_Flex2X = 0;
-float valinit_Flex2Y = 0;
-float valinit_POF1 = 0;
-float valinit_POF2 = 0;
-
-int cont_init = 0;
-int cont_mean = 0;
-
 ADS myFlexSensor1; //Create object of the ADS class
 ADS myFlexSensor2; //Create object of the ADS class
 
@@ -103,8 +93,11 @@ const byte dataReadyPin_2 = 15;
 
 const byte POF_01 = 39;
 const byte POF_02 = 36;
+int POF_fint = 4; 
 
 int countdownMS; //variable to count time
+
+int POF_fint_value = 0;
 
 //Variables to send with ESPNOW
 typedef struct struct_message {
@@ -114,6 +107,7 @@ typedef struct struct_message {
   float NOW_S2_Xflex;
   float NOW_S2_Yflex;
   float NOW_S2_POF;
+  float NOW_FINT_POF;
 } struct_message;
 
 // Create a struct_message called myData
@@ -140,6 +134,7 @@ void setup() {
   pinMode(dataReadyPin_2, INPUT);
   pinMode(POF_01, INPUT);
   pinMode(POF_02, INPUT);
+  pinMode(POF_fint, INPUT);
 
   Wire.begin();
 
@@ -172,7 +167,7 @@ void setup() {
   esp_now_register_send_cb(OnDataSent);
 
   // Register peer
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  memcpy(peerInfo.peer_addr, broadcastAddress, 7);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
 
@@ -219,6 +214,7 @@ void loop() {
   // Read POF sensors
   pof1_lpfilt  = low_pass_param_1 * pof1_ant + low_pass_param_2 * analogRead(POF_01); // low-pass filter
   pof2_lpfilt  = low_pass_param_1 * pof2_ant + low_pass_param_2 * analogRead(POF_02); // low-pass filter
+  POF_fint_value = analogRead(POF_fint);
 
   data[4] = pof1_lpfilt;
   data[5] = pof2_lpfilt;
@@ -244,34 +240,17 @@ void loop() {
 
   // ************
 
-  if (cont_init > 50 && cont_init < 100) {
-    valinit_Flex1X = valinit_Flex1X + Xk_est(0);
-    valinit_Flex1Y = valinit_Flex1Y + Xk_est(1);
-    valinit_POF1 = valinit_POF1 + Xk_est(2);
-    valinit_Flex2X = valinit_Flex2X + Xk_est(3);
-    valinit_Flex2Y = valinit_Flex2Y + Xk_est(4);
-    valinit_POF2 = valinit_POF2 + Xk_est(5);
-    cont_init++;
-  }
-  if (cont_init <= 50) cont_init++;
-  if (cont_init >= 100 && cont_mean == 0) {
-    valinit_Flex1X = valinit_Flex1X / 50;
-    valinit_Flex1Y = valinit_Flex1Y / 50;
-    valinit_Flex2X = valinit_Flex2X / 50;
-    valinit_Flex2Y = valinit_Flex2Y / 50;
-    valinit_POF1 = valinit_POF1 / 50;
-    valinit_POF2 = valinit_POF2 / 50;
-    cont_mean++;
-  }
-
-
   // Send filtered data by ESPNOW
-  myData.NOW_S1_Xflex = (Xk_est(0) - (valinit_Flex1X));
-  myData.NOW_S1_Yflex = (Xk_est(1) - (valinit_Flex1Y));
-  myData.NOW_S1_POF   = (Xk_est(2) - (valinit_POF1));
-  myData.NOW_S2_Xflex = (Xk_est(3) - (valinit_Flex2X));
-  myData.NOW_S2_Yflex = (Xk_est(4) - (valinit_Flex2Y));
-  myData.NOW_S2_POF   = (Xk_est(5) - (valinit_POF2));
+  // Left Sensors
+  myData.NOW_S1_Xflex = (Xk_est(0)); 
+  myData.NOW_S1_Yflex = (Xk_est(1));
+  myData.NOW_S1_POF   = (Xk_est(2));
+  // Right sensors
+  myData.NOW_S2_Xflex = (Xk_est(3)); 
+  myData.NOW_S2_Yflex = (Xk_est(4));
+  myData.NOW_S2_POF   = (Xk_est(5));
+  // New sensor
+  myData.NOW_FINT_POF = POF_fint_value;
 
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
@@ -284,17 +263,19 @@ void loop() {
   }
 
   if (true) {
-    Serial.print(Xk_est(0) - (valinit_Flex1X));
+    Serial.print(Xk_est(0));
     Serial.print("\t");
-    Serial.print(Xk_est(1) - (valinit_Flex1Y));
+    Serial.print(Xk_est(1));
     Serial.print("\t");
-    Serial.print(Xk_est(2) - (valinit_POF1));
+    Serial.print(Xk_est(2));
     Serial.print("\t");
-    Serial.print(Xk_est(3) - (valinit_Flex2X));
+    Serial.print(Xk_est(3));
     Serial.print("\t");
-    Serial.print(Xk_est(4) - (valinit_Flex2Y));
+    Serial.print(Xk_est(4));
     Serial.print("\t");
-    Serial.print(Xk_est(5) - (valinit_POF2));
+    Serial.print(Xk_est(5));
+    Serial.print("\t");
+    Serial.print(POF_fint_value);
     Serial.print("\t");
   }
 
