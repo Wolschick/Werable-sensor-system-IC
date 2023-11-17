@@ -1,13 +1,13 @@
 #include <BasicLinearAlgebra.h>
 #include <ElementStorage.h>
-
 #include <esp_now.h>
 #include <WiFi.h>
 #include <math.h>
 
 const bool print_raw_data = false;
-const bool print_predict_data = false;
-const bool send_serial_data = true;
+const bool print_predict_data = true;
+const bool send_serial_data = false;
+const bool print_new_pof_sens = false;
 
 float predicted_values[2];
 
@@ -78,6 +78,8 @@ typedef struct struct_message {
   float NOW_S2_Xflex;
   float NOW_S2_Yflex;
   float NOW_S2_POF;
+  float NOW_FINT_POF_A;
+  float NOW_FINT_POF_B;
 } struct_message;
 
 // Create a structured object
@@ -111,15 +113,6 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
     Serial.print(-myData.NOW_S2_POF / 10);
     Serial.print("\n");
-    /*
-        Serial.print(myData.NOW_IMU_Tetha);
-        Serial.print("\n");
-
-        Serial.print(myData.NOW_IMU_Phi);
-        Serial.print("\t");
-        Serial.print(myData.NOW_IMU_Psi);
-        Serial.print("\n");
-    */
   }
 }
 
@@ -142,7 +135,7 @@ void setup()
   predicted_values[5] = 0;
   predicted_values[6] = 0;
   predicted_values[7] = 0;
-  predicted_values[8] = 0;
+  //predicted_values[8] = 0;
 }
 
 void loop()
@@ -161,6 +154,13 @@ void loop()
     Serial.print("\t|\t");
     Serial.print("predicted right value: ");
     Serial.print((180 * predicted_right) / 3.141592);
+    Serial.print("\n");
+  }
+
+  if (print_new_pof_sens == true) {
+    Serial.print(myData.NOW_FINT_POF_A);
+    Serial.print("\t");
+    Serial.print(myData.NOW_FINT_POF_B);
     Serial.print("\n");
   }
 
