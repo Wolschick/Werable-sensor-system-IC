@@ -55,6 +55,19 @@ void loop() {
   IMU_A.getMotion6(&ax_A, &ay_A, &az_A, &gx_A, &gy_A, &gz_A);
   IMU_B.getMotion6(&ax_B, &ay_B, &az_B, &gx_B, &gy_B, &gz_B);
 
+  // Converter de int16 para float e aplicar a escala adequada
+  float ax_f = ax_A / 16384.0;  // Sensibilidade do acelerômetro +-2g (16384 LSB/g)
+  float ay_f = ay_A / 16384.0;
+  float az_f = az_A / 16384.0;
+  float gx_f = gx_A / 131.0;  // Sensibilidade do giroscópio +-250 deg/s (131 LSB/(deg/s))
+  float gy_f = gy_A / 131.0;
+  float gz_f = gz_A / 131.0;
+
+  // Convertendo as taxas do giroscópio de graus por segundo para radianos por segundo
+  gx_f *= (M_PI / 180.0);
+  gy_f *= (M_PI / 180.0);
+  gz_f *= (M_PI / 180.0);
+
   updateSensorReadings(ax_A, ay_A, az_A, gx_A, gy_A, gz_A, &pitch_A, &roll_A);
   updateSensorReadings(ax_B, ay_B, az_B, gx_B, gy_B, gz_B, &pitch_B, &roll_B);
   Serial.print(pitch_A);
@@ -80,8 +93,8 @@ void computeAccelAngles(float ax, float ay, float az, float **pitch, float **rol
 // update values of angle by gyroscope data
 void updateSensorReadings(float gx, float gy, float gz, float ax, float ay, float az, float *pitch, float *roll) {
   // Primeiro, atualize com giroscópio
-  *pitch += gx * dt;
-  *roll += gy * dt;
+  *pitch += gx * dt * 180 / M_PI;
+  *roll += gy * dt * 180 / M_PI;
 
   // Agora, aplique o filtro complementar com acelerômetro
   computeAccelAngles(ax, ay, az, &pitch, &roll);
