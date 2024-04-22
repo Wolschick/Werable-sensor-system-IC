@@ -13,20 +13,16 @@ float pitch_A = 0, roll_A = 0;
 float pitch_B = 0, roll_B = 0;
 
 // acelerometer variables
-int16_t ax_A;
-int16_t ay_A;
-int16_t az_A;
-int16_t ax_B;
-int16_t ay_B;
-int16_t az_B;
+int16_t ax_A, ay_A, az_A;
+int16_t ax_B, ay_B, az_B;
+float axS_A, ayS_A, azS_A;
+float axS_B, ayS_B, azS_B;
 
 //gyroscope variables
-int16_t gx_A;
-int16_t gy_A;
-int16_t gz_A;
-int16_t gx_B;
-int16_t gy_B;
-int16_t gz_B;
+int16_t gx_A, gy_A, gz_A;
+int16_t gx_B, gy_B, gz_B;
+float gxS_A, gyS_A, gzS_A;
+float gxS_B, gyS_B, gzS_B;
 
 void setup() {
   Serial.begin(115200);
@@ -50,26 +46,19 @@ void setup() {
 }
 
 void loop() {
-  // Lê os valores de aceleração e giroscópio
 
+  // Lê os valores de aceleração e giroscópio
   IMU_A.getMotion6(&ax_A, &ay_A, &az_A, &gx_A, &gy_A, &gz_A);
   IMU_B.getMotion6(&ax_B, &ay_B, &az_B, &gx_B, &gy_B, &gz_B);
 
-  // Converter de int16 para float e aplicar a escala adequada
-  float ax_f = ax_A / 16384.0;  // Sensibilidade do acelerômetro +-2g (16384 LSB/g)
-  float ay_f = ay_A / 16384.0;
-  float az_f = az_A / 16384.0;
-  float gx_f = gx_A / 131.0;  // Sensibilidade do giroscópio +-250 deg/s (131 LSB/(deg/s))
-  float gy_f = gy_A / 131.0;
-  float gz_f = gz_A / 131.0;
+  //correct scale from accelerometer and gyroscope
+  sensy_raw_data(ax_A, ay_A, az_A, gx_A, gy_A, gz_A, &axS_A, &ayS_A, &azS_A, &gxS_A, &gyS_A, &gzS_A);
+  sensy_raw_data(ax_B, ay_B, az_B, gx_B, gy_B, gz_B, &axS_B, &ayS_B, &azS_B, &gxS_B, &gyS_B, &gzS_B);
 
-  // Convertendo as taxas do giroscópio de graus por segundo para radianos por segundo
-  gx_f *= (M_PI / 180.0);
-  gy_f *= (M_PI / 180.0);
-  gz_f *= (M_PI / 180.0);
+  //calculate angle
+  computeAccelAngles(axS_A, ayS_A, azS_A, gxS_A, gyS_A, gzS_A, &pitch_A, &roll_A);
+  computeAccelAngles(axS_B, ayS_B, azS_B, gxS_B, gyS_B, gzS_B, &pitch_B, &roll_B);
 
-  updateSensorReadings(ax_A, ay_A, az_A, gx_A, gy_A, gz_A, &pitch_A, &roll_A);
-  updateSensorReadings(ax_B, ay_B, az_B, gx_B, gy_B, gz_B, &pitch_B, &roll_B);
   Serial.print(pitch_A);
   Serial.print("\t");
   Serial.print(roll_A);
@@ -82,20 +71,34 @@ void loop() {
 }
 
 // calculate angle values by accelerometer data
-void computeAccelAngles(float ax, float ay, float az, float **pitch, float **roll) {
+void computeAccelAngles(float ax, float ay, float az, float gx, float gy, float gz, float* pitch, float* roll) {
   float pitchAcc, rollAcc;
+
+  //Calculate angle by accelerometer data
   pitchAcc = atan2f(ax, sqrtf(ay * ay + az * az)) * 180 / M_PI;
   rollAcc = atan2f(ay, sqrtf(ax * ax + az * az)) * 180 / M_PI;
-  **pitch = **pitch * alpha + pitchAcc * (1 - alpha);
-  **roll = **roll * alpha + rollAcc * (1 - alpha);
-}
 
-// update values of angle by gyroscope data
-void updateSensorReadings(float gx, float gy, float gz, float ax, float ay, float az, float *pitch, float *roll) {
-  // Primeiro, atualize com giroscópio
+  // integration of gyroscope data
   *pitch += gx * dt * 180 / M_PI;
   *roll += gy * dt * 180 / M_PI;
 
-  // Agora, aplique o filtro complementar com acelerômetro
-  computeAccelAngles(ax, ay, az, &pitch, &roll);
+  //filter
+  *pitch = *pitch * alpha + pitchAcc * (1 - alpha);
+  *roll = *roll * alpha + rollAcc * (1 - alpha);
+
+}
+
+void sensy_raw_data(float ax, float ay, float az, float gx, float gy, float gz, float *axS, float *ayS, float *azS, float *gxS, float *gyS, float *gzS) {
+  // Convert int16 to float and apply scale
+  *axS = ax / 16384.0;  // Sensibility of accelerometer +-2g (16384 LSB/g)
+  *ayS = ay / 16384.0;
+  *azS = az / 16384.0;
+  *gxS = gx / 131.0;  // Sensibility of gyroscope +-250 deg/s (131 LSB/(deg/s))
+  *gyS = gy / 131.0;
+  *gzS = gz / 131.0;
+
+  //Convert gyro of degrees to rad/s
+  *gxS *= (M_PI / 180.0);
+  *gyS *= (M_PI / 180.0);
+  *gzS *= (M_PI / 180.0);
 }
