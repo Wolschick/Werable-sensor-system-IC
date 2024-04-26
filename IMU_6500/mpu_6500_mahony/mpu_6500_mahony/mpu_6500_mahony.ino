@@ -7,7 +7,11 @@ int MPU_addr_B = 0x69;
 float A_calA[6] = { 0.0, 0.0, 0.0, 1.000, 1.000, 1.000 };  // 0..2 offset xyz, 3..5 scale xyz
 float A_calB[6] = { 0.0, 0.0, 0.0, 1.000, 1.000, 1.000 };  // 0..2 offset xyz, 3..5 scale xyz
 
-float G_off[3] = { -499.5, -17.7, -82.0 };        //raw offsets, determined for gyro at rest
+float G_offA[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
+float G_offB[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
+
+bool flag_calib_gyro = true;
+
 #define gscale ((250. / 32768.0) * (PI / 180.0))  //gyro default 250 LSB per d/s -> rad/s
 
 // ^^^^^^^^^^^^^^^^^^^ VERY IMPORTANT ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -30,7 +34,7 @@ float Ki = 0.0;
 unsigned long now_ms, last_ms = 0;  //millis() timers
 
 // print interval
-unsigned long print_ms = 10;  //print angles every "print_ms" milliseconds
+unsigned long print_ms = 10;   //print angles every "print_ms" milliseconds
 float yaw_A, pitch_A, roll_A;  //Euler angle output
 float yaw_B, pitch_B, roll_B;  //Euler angle output
 
@@ -62,6 +66,9 @@ void setup() {
 void loop() {
   static float deltat = 0;                 //loop time in seconds
   static unsigned long now = 0, last = 0;  //micros() timers
+  static long gsum_A[3] = { 0 };
+  static long gsum_B[3] = { 0 };
+  static unsigned int cont_calib_gyro = 0;
 
   //raw data
   int16_t ax_A, ay_A, az_A;
@@ -80,6 +87,13 @@ void loop() {
   update_acc_gyr(&MPU_addr_A, &ax_A, &ay_A, &az_A, &gx_A, &gy_A, &gz_A, &Tmp_A);
   update_acc_gyr(&MPU_addr_B, &ax_B, &ay_B, &az_B, &gx_B, &gy_B, &gz_B, &Tmp_B);
 
+  //calib gyroscope
+  if (flag_calib_gyro) {
+    cont_calib_gyro++;
+    calib_gyro(&gx_A, &gy_A, &gz_A, G_offA, gsum_A, cont_calib_gyro);
+    calib_gyro(&gx_B, &gy_B, &gz_B, G_offB, gsum_B, cont_calib_gyro);
+  }
+
   //convert to float and add to an array
   Axyz_A[0] = (float)ax_A;
   Axyz_A[1] = (float)ay_A;
@@ -95,12 +109,12 @@ void loop() {
   }
 
   //250 LSB(d/s) default to radians/s
-  Gxyz_A[0] = ((float)gx_A - G_off[0]) * gscale;
-  Gxyz_A[1] = ((float)gy_A - G_off[1]) * gscale;
-  Gxyz_A[2] = ((float)gz_A - G_off[2]) * gscale;
-  Gxyz_B[0] = ((float)gx_B - G_off[0]) * gscale;
-  Gxyz_B[1] = ((float)gy_B - G_off[1]) * gscale;
-  Gxyz_B[2] = ((float)gz_B - G_off[2]) * gscale;
+  Gxyz_A[0] = ((float)gx_A - G_offA[0]) * gscale;
+  Gxyz_A[1] = ((float)gy_A - G_offA[1]) * gscale;
+  Gxyz_A[2] = ((float)gz_A - G_offA[2]) * gscale;
+  Gxyz_B[0] = ((float)gx_B - G_offB[0]) * gscale;
+  Gxyz_B[1] = ((float)gy_B - G_offB[1]) * gscale;
+  Gxyz_B[2] = ((float)gz_B - G_offB[2]) * gscale;
 
   //  snprintf(s,sizeof(s),"mpu raw %d,%d,%d,%d,%d,%d",ax,ay,az,gx,gy,gz);
   //  Serial.println(s);
@@ -153,6 +167,17 @@ void update_acc_gyr(int *MPU_addr, int16_t *ax, int16_t *ay, int16_t *az, int16_
   *gy = t | Wire.read();  // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
   t = Wire.read() << 8;
   *gz = t | Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
+}
+
+void calib_gyro(int16_t *gx, int16_t *gy, int16_t *gz, float *G_off, long int *gsum, unsigned int i) {
+  gsum[0] += *gx;
+  gsum[1] += *gy;
+  gsum[2] += *gz;
+  if (i == 500) {
+    flag_calib_gyro = false;  //turn off calibration and print results
+
+    for (char k = 0; k < 3; k++) G_off[k] = ((float)gsum[k]) / 500.0;
+  }
 }
 
 void Mahony_update(float Axyz[3], float Gxyz[3], float *q, float deltat) {
