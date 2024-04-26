@@ -30,7 +30,7 @@ float Ki = 0.0;
 unsigned long now_ms, last_ms = 0;  //millis() timers
 
 // print interval
-unsigned long print_ms = 200;  //print angles every "print_ms" milliseconds
+unsigned long print_ms = 10;  //print angles every "print_ms" milliseconds
 float yaw_A, pitch_A, roll_A;  //Euler angle output
 float yaw_B, pitch_B, roll_B;  //Euler angle output
 
@@ -109,17 +109,11 @@ void loop() {
   deltat = (now - last) * 1.0e-6;  //seconds since last update
   last = now;
 
-  Mahony_update(Axyz_A, Gxyz_A, &qA, deltat);
+  Mahony_update(Axyz_A, Gxyz_A, qA, deltat);
+  Mahony_update(Axyz_B, Gxyz_B, qB, deltat);
 
-  roll_A = atan2((qA[0] * qA[1] + qA[2] * qA[3]), 0.5 - (qA[1] * qA[1] + qA[2] * qA[2]));
-  pitch_A = asin(2.0 * (qA[0] * qA[2] - qA[1] * qA[3]));
-  //conventional yaw increases clockwise from North. Not that the MPU-6050 knows where North is.
-  yaw_A = -atan2((qA[1] * qA[2] + qA[0] * qA[3]), 0.5 - (qA[2] * qA[2] + qA[3] * qA[3]));
-  // to degrees
-  yaw_A *= 180.0 / PI;
-  if (yaw_A < 0) yaw_A += 360.0;  //compass circle
-  pitch_A *= 180.0 / PI;
-  roll_A *= 180.0 / PI;
+  calc_euler_angles(&roll_A, &pitch_A, &yaw_A, qA);
+  calc_euler_angles(&roll_B, &pitch_B, &yaw_B, qB);
 
   now_ms = millis();  //time to print?
   if (now_ms - last_ms >= print_ms) {
@@ -127,10 +121,16 @@ void loop() {
     // print angles for serial plotter...
     //  Serial.print("ypr ");
     Serial.print(yaw_A, 0);
-    Serial.print(", ");
+    Serial.print("\t");
     Serial.print(pitch_A, 0);
-    Serial.print(", ");
-    Serial.println(roll_A, 0);
+    Serial.print("\t");
+    Serial.print(roll_A, 0);
+    Serial.print("\t");
+    Serial.print(yaw_B, 0);
+    Serial.print("\t");
+    Serial.print(pitch_B, 0);
+    Serial.print("\t");
+    Serial.println(roll_B, 0);
   }
 }
 
@@ -155,7 +155,7 @@ void update_acc_gyr(int *MPU_addr, int16_t *ax, int16_t *ay, int16_t *az, int16_
   *gz = t | Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
 }
 
-void Mahony_update(float Axyz[3], float Gxyz[3], float *q[4], float deltat) {
+void Mahony_update(float Axyz[3], float Gxyz[3], float *q, float deltat) {
   float recipNorm;
   float vx, vy, vz;
   float ex, ey, ez;  //error terms
@@ -221,4 +221,16 @@ void Mahony_update(float Axyz[3], float Gxyz[3], float *q[4], float deltat) {
   q[1] = q[1] * recipNorm;
   q[2] = q[2] * recipNorm;
   q[3] = q[3] * recipNorm;
+}
+
+void calc_euler_angles(float *roll, float *pitch, float *yaw, float *q) {
+  *roll = atan2((q[0] * q[1] + q[2] * q[3]), 0.5 - (q[1] * q[1] + q[2] * q[2]));
+  *pitch = asin(2.0 * (q[0] * q[2] - q[1] * q[3]));
+  //conventional yaw increases clockwise from North. Not that the MPU-6050 knows where North is.
+  *yaw = -atan2((q[1] * q[2] + q[0] * q[3]), 0.5 - (q[2] * q[2] + q[3] * q[3]));
+  // to degrees
+  *yaw *= 180.0 / PI;
+  if (*yaw < 0) *yaw += 360.0;  //compass circle
+  *pitch *= 180.0 / PI;
+  *roll *= 180.0 / PI;
 }
