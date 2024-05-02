@@ -11,6 +11,7 @@ float G_offA[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
 float G_offB[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
 
 bool flag_calib_gyro = true;
+bool print_data = false;
 
 #define gscale ((250. / 32768.0) * (PI / 180.0))  //gyro default 250 LSB per d/s -> rad/s
 
@@ -87,6 +88,18 @@ void loop() {
   update_acc_gyr(&MPU_addr_A, &ax_A, &ay_A, &az_A, &gx_A, &gy_A, &gz_A, &Tmp_A);
   update_acc_gyr(&MPU_addr_B, &ax_B, &ay_B, &az_B, &gx_B, &gy_B, &gz_B, &Tmp_B);
 
+  Serial.print(ax_A);
+  Serial.print("\t");
+  Serial.print(ay_A);
+  Serial.print("\t");
+  Serial.print(az_A);
+  Serial.print("\t");
+  Serial.print(ax_B);
+  Serial.print("\t");
+  Serial.print(ay_B);
+  Serial.print("\t");
+  Serial.println(az_B);
+
   //calib gyroscope
   if (flag_calib_gyro) {
     cont_calib_gyro++;
@@ -130,7 +143,7 @@ void loop() {
   calc_euler_angles(&roll_B, &pitch_B, &yaw_B, qB);
 
   now_ms = millis();  //time to print?
-  if (now_ms - last_ms >= print_ms) {
+  if ((now_ms - last_ms >= print_ms) && print_data == true) {
     last_ms = now_ms;
     // print angles for serial plotter...
     //  Serial.print("ypr ");
