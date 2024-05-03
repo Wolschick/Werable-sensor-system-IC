@@ -10,8 +10,13 @@ float A_calB[6] = { 0.0, 0.0, 0.0, 1.000, 1.000, 1.000 };  // 0..2 offset xyz, 3
 float G_offA[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
 float G_offB[3] = { 0, 0, 0 };  //raw offsets, determined for gyro at rest
 
+//const to print data
 bool flag_calib_gyro = true;
-bool print_data = false;
+const bool print_data = false;
+const bool print_Acc = false;
+const bool send_serial_data = true;
+
+float IMU_values[9] = {0};
 
 #define gscale ((250. / 32768.0) * (PI / 180.0))  //gyro default 250 LSB per d/s -> rad/s
 
@@ -88,17 +93,20 @@ void loop() {
   update_acc_gyr(&MPU_addr_A, &ax_A, &ay_A, &az_A, &gx_A, &gy_A, &gz_A, &Tmp_A);
   update_acc_gyr(&MPU_addr_B, &ax_B, &ay_B, &az_B, &gx_B, &gy_B, &gz_B, &Tmp_B);
 
-  Serial.print(ax_A);
-  Serial.print("\t");
-  Serial.print(ay_A);
-  Serial.print("\t");
-  Serial.print(az_A);
-  Serial.print("\t");
-  Serial.print(ax_B);
-  Serial.print("\t");
-  Serial.print(ay_B);
-  Serial.print("\t");
-  Serial.println(az_B);
+  if (print_Acc == true) {
+    Serial.print(ax_A);
+    Serial.print("\t");
+    Serial.print(ay_A);
+    Serial.print("\t");
+    Serial.print(az_A);
+    Serial.print("\t");
+    Serial.print(ax_B);
+    Serial.print("\t");
+    Serial.print(ay_B);
+    Serial.print("\t");
+    Serial.println(az_B);
+  }
+
 
   //calib gyroscope
   if (flag_calib_gyro) {
@@ -142,22 +150,18 @@ void loop() {
   calc_euler_angles(&roll_A, &pitch_A, &yaw_A, qA);
   calc_euler_angles(&roll_B, &pitch_B, &yaw_B, qB);
 
+  IMU_values[0] = (roll_A - roll_B);
+  
+  if (send_serial_data == true) {
+    serialEvent();
+  }
+
   now_ms = millis();  //time to print?
   if ((now_ms - last_ms >= print_ms) && print_data == true) {
     last_ms = now_ms;
     // print angles for serial plotter...
     //  Serial.print("ypr ");
-    Serial.print(yaw_A, 0);
-    Serial.print("\t");
-    Serial.print(pitch_A, 0);
-    Serial.print("\t");
-    Serial.print(roll_A, 0);
-    Serial.print("\t");
-    Serial.print(yaw_B, 0);
-    Serial.print("\t");
-    Serial.print(pitch_B, 0);
-    Serial.print("\t");
-    Serial.println(roll_B, 0);
+    Serial.println(IMU_values[0], 0);
   }
 }
 
@@ -271,4 +275,15 @@ void calc_euler_angles(float *roll, float *pitch, float *yaw, float *q) {
   if (*yaw < 0) *yaw += 360.0;  //compass circle
   *pitch *= 180.0 / PI;
   *roll *= 180.0 / PI;
+}
+
+void serialEvent() {
+  char cmd = Serial.read();
+  if (cmd == 'p') {
+    uint8_t *toSend1;
+    toSend1 = (uint8_t *)&IMU_values;
+    for (int i = 0; i < (9 * 4); i++) {
+      Serial.write(*(toSend1 + i));
+    }
+  }
 }
